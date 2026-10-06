@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#efe7dc">
+  <title>我的小房間｜互動式房間設計器</title>
+  <style>
+    :root {
+      --ink: #292722;
+      --muted: #7b756d;
+      --paper: #f6f1e9;
+      --panel: rgba(255,255,255,.78);
+      --line: rgba(44,39,32,.11);
+      --accent: #e96b48;
+      --accent-dark: #bd4a2a;
+      --wall: #e9d7c4;
+      --floor: #c89261;
+      --shadow: 0 18px 50px rgba(70,50,30,.13);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(255,255,255,.9), transparent 28%),
+        linear-gradient(145deg, #f8f4ee 0%, #e9dfd3 100%);
+      font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .app {
+      width: min(1440px, 100%);
+      min-height: 100vh;
+      margin: auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      grid-template-rows: auto 1fr;
+      gap: 18px;
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 4px 2px 8px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .brand-mark {
+      width: 46px; height: 46px; border-radius: 15px;
+      display: grid; place-items: center;
+      background: var(--ink); color: #fff; font-size: 23px;
+      box-shadow: 0 9px 24px rgba(32,29,26,.18);
+    }
+    h1 { margin: 0; font-family: Georgia, "Noto Serif TC", serif; font-size: clamp(22px, 3vw, 32px); letter-spacing: -.03em; }
+    .subtitle { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+
+    .top-actions { display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+    .btn {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      min-height: 42px;
+      padding: 0 15px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      color: var(--ink); background: rgba(255,255,255,.68);
+      cursor: pointer; transition: .18s ease;
+      box-shadow: 0 4px 12px rgba(44,39,32,.04);
+    }
+    .btn:hover { transform: translateY(-2px); background: #fff; box-shadow: 0 8px 18px rgba(44,39,32,.09); }
+    .btn:active { transform: translateY(0); }
+    .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .btn.primary:hover { background: #47423b; }
+    .btn.icon { width: 42px; padding: 0; font-size: 18px; }
+    .btn.danger { color: #a03f2c; }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.82);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .sidebar { padding: 20px; overflow: auto; }
+    .section + .section { margin-top: 26px; }
+    .section-title {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 0 0 12px;
+      font-size: 12px; font-weight: 800; letter-spacing: .13em; color: var(--muted);
+      text-transform: uppercase;
+    }
+    .count { background: #eee7de; padding: 3px 8px; border-radius: 999px; letter-spacing: 0; }
+
+    .furniture-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+    .furniture-btn {
+      position: relative;
+      border: 1px solid var(--line); border-radius: 15px;
+      min-height: 88px; padding: 10px 5px 8px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+      color: var(--ink); background: rgba(255,255,255,.65); cursor: pointer;
+      transition: .18s ease;
+    }
+    .furniture-btn:hover { border-color: rgba(233,107,72,.4); background: #fff8f2; transform: translateY(-2px); }
+    .furniture-btn .emoji { font-size: 34px; line-height: 1; filter: drop-shadow(0 5px 5px rgba(50,40,30,.13)); }
+    .furniture-btn .label { font-size: 12px; font-weight: 700; }
+    .furniture-btn::after { content: "+"; position: absolute; top: 7px; right: 8px; color: var(--accent); font-weight: 800; opacity: 0; transition: .18s; }
+    .furniture-btn:hover::after { opacity: 1; }
+
+    .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+    .swatch {
+      width: 32px; height: 32px; padding: 0; border: 3px solid #fff; border-radius: 50%;
+      background: var(--color); box-shadow: 0 0 0 1px var(--line); cursor: pointer; transition: .15s;
+    }
+    .swatch:hover, .swatch.active { transform: scale(1.1); box-shadow: 0 0 0 2px var(--ink); }
+
+    .workspace { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+    .room-shell { padding: 18px; flex: 1; min-height: 580px; }
+    .room {
+      position: relative;
+      width: 100%; height: 100%; min-height: 544px;
+      overflow: hidden; border-radius: 16px;
+      background: linear-gradient(to bottom, var(--wall) 0 66%, var(--floor) 66% 100%);
+      box-shadow: inset 0 0 0 1px rgba(35,30,25,.08), inset 0 -80px 100px rgba(60,40,22,.07);
+      isolation: isolate;
+      touch-action: none;
+    }
+    .room::before {
+      content: ""; position: absolute; z-index: -1; inset: 66% 0 auto; height: 34%;
+      background: repeating-linear-gradient(95deg, transparent 0 78px, rgba(70,44,25,.09) 79px 81px);
+      pointer-events: none;
+    }
+    .room::after {
+      content: ""; position: absolute; z-index: 0; left: 0; right: 0; top: calc(66% - 7px); height: 9px;
+      background: rgba(255,255,255,.58); border-top: 1px solid rgba(60,45,32,.08); border-bottom: 1px solid rgba(60,45,32,.1);
+      pointer-events: none;
+    }
+
+    .window {
+      position: absolute; z-index: 0; top: 12%; left: 9%; width: 180px; height: 145px;
+      border: 11px solid #f5eee4; border-bottom-width: 14px; border-radius: 4px;
+      background: linear-gradient(#a9d7dd 0 60%, #b3c996 60%);
+      box-shadow: 0 8px 15px rgba(50,40,30,.12), inset 0 0 25px rgba(255,255,255,.5);
+      transition: background .4s;
+    }
+    .window::before, .window::after { content: ""; position: absolute; background: #f5eee4; }
+    .window::before { width: 8px; top: 0; bottom: 0; left: calc(50% - 4px); }
+    .window::after { height: 7px; left: 0; right: 0; top: calc(50% - 3px); }
+    .sun { position: absolute; width: 30px; height: 30px; border-radius: 50%; top: 15px; right: 18px; background: #ffe59a; box-shadow: 0 0 24px #fff0ad; }
+
+    .room.night { filter: saturate(.75); }
+    .room.night .window { background: linear-gradient(#172943 0 65%, #253f47 65%); }
+    .room.night .sun { width: 25px; height: 25px; background: #fff6cf; box-shadow: 0 0 18px #fff8dc; }
+    .room.night::before { background: repeating-linear-gradient(95deg, rgba(30,35,55,.2) 0 78px, rgba(20,20,35,.28) 79px 81px); }
+    .night-overlay { position: absolute; z-index: 50; inset: 0; background: rgba(21,31,56,.33); opacity: 0; pointer-events: none; transition: .4s; mix-blend-mode: multiply; }
+    .room.night .night-overlay { opacity: 1; }
+
+    .room-hint {
+      position: absolute; z-index: 1; left: 50%; top: 51%; transform: translate(-50%,-50%);
+      color: rgba(55,45,35,.48); text-align: center; pointer-events: none; transition: .25s;
+    }
+    .room-hint strong { display: block; color: rgba(55,45,35,.64); font-family: Georgia, serif; font-size: 24px; margin-bottom: 5px; }
+    .room.has-items .room-hint { opacity: 0; }
+
+    .item {
+      position: absolute; z-index: 5;
+      width: 112px; height: 100px;
+      display: grid; place-items: center;
+      cursor: grab; user-select: none;
+      transform-origin: center;
+      transform: translate(-50%,-50%) rotate(var(--r, 0deg)) scale(var(--s, 1));
+      filter: drop-shadow(0 12px 7px rgba(40,30,20,.18));
+      transition: filter .15s;
+    }
+    .item:active { cursor: grabbing; }
+    .item.selected { z-index: 45; filter: drop-shadow(0 13px 8px rgba(40,30,20,.22)); }
+    .item.selected::after {
+      content: ""; position: absolute; inset: 0; border: 2px dashed var(--accent); border-radius: 12px;
+      animation: selectPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes selectPulse { 50% { border-color: var(--accent-dark); } }
+    .item-art { pointer-events: none; font-size: 70px; line-height: 1; }
+    .item[data-type="rug"] .item-art { font-size: 0; width: 110px; height: 64px; border-radius: 50%; background: repeating-linear-gradient(90deg,#cc765b 0 13px,#e7b76c 13px 26px,#5f8f83 26px 39px); border: 5px solid #f2d6a4; }
+    .item[data-type="lamp"] .item-art { text-shadow: 0 0 22px rgba(255,221,120,.95); }
+    .item-name {
+      position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%);
+      padding: 4px 7px; border-radius: 7px; background: #282621; color: white;
+      font-size: 10px; white-space: nowrap; opacity: 0; pointer-events: none;
+    }
+    .item.selected .item-name { opacity: 1; }
+
+    .selection-bar {
+      min-height: 62px; padding: 9px 11px;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .selection-info { min-width: 150px; margin-right: auto; padding-left: 7px; }
+    .selection-info strong { display: block; font-size: 14px; }
+    .selection-info span { color: var(--muted); font-size: 11px; }
+    .tool-btn { min-height: 39px; padding: 0 12px; font-size: 13px; }
+    .tool-btn:disabled { opacity: .38; cursor: not-allowed; transform: none; }
+
+    .toast {
+      position: fixed; z-index: 100; left: 50%; bottom: 26px;
+      transform: translate(-50%, 20px); opacity: 0;
+      background: #292722; color: white; border-radius: 999px; padding: 11px 18px;
+      font-size: 13px; box-shadow: 0 12px 30px rgba(20,20,20,.25);
+      transition: .25s; pointer-events: none;
+    }
+    .toast.show { transform: translate(-50%,0); opacity: 1; }
+
+    .mobile-catalog { display: none; }
+
+    @media (max-width: 860px) {
+      .app { display: flex; flex-direction: column; padding: 14px; gap: 12px; }
+      .topbar { align-items: flex-start; }
+      .top-actions .btn span { display: none; }
+      .sidebar { display: none; }
+      .room-shell { min-height: 500px; padding: 10px; }
+      .room { min-height: 478px; }
+      .window { width: 130px; height: 105px; border-width: 8px; }
+      .mobile-catalog {
+        display: flex; gap: 8px; overflow-x: auto; padding: 10px;
+        scrollbar-width: none;
+      }
+      .mobile-catalog .furniture-btn { flex: 0 0 76px; min-height: 72px; }
+      .mobile-catalog .furniture-btn .emoji { font-size: 28px; }
+      .selection-bar { justify-content: center; }
+      .selection-info { width: 100%; margin: 0; text-align: center; }
+    }
+
+    @media (max-width: 520px) {
+      .app { padding: 10px; }
+      .subtitle { display: none; }
+      .brand-mark { width: 40px; height: 40px; }
+      .top-actions { gap: 5px; }
+      .btn.icon { width: 38px; min-height: 38px; }
+      .room-shell { min-height: 405px; }
+      .room { min-height: 385px; }
+      .item { width: 92px; height: 82px; }
+      .item-art { font-size: 58px; }
+      .selection-bar .tool-btn { flex: 1 1 28%; padding: 0 7px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">⌂</div>
+        <div>
+          <h1>我的小房間</h1>
+          <p class="subtitle">挑選家具，佈置一個只屬於你的舒服角落。</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="btn icon" id="themeBtn" title="切換日夜" aria-label="切換日夜">☀️</button>
+        <button class="btn" id="randomBtn"><b>✦</b><span>給我靈感</span></button>
+        <button class="btn primary" id="saveBtn"><b>↓</b><span>儲存房間</span></button>
+      </div>
+    </header>
+
+    <aside class="panel sidebar" aria-label="設計工具">
+      <section class="section">
+        <h2 class="section-title">家具小舖 <span class="count" id="itemCount">0 件</span></h2>
+        <div class="furniture-grid" id="desktopCatalog"></div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">牆面色彩</h2>
+        <div class="swatches" id="wallSwatches"></div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">地板材質</h2>
+        <div class="swatches" id="floorSwatches"></div>
+      </section>
+
+      <section class="section">
+        <button class="btn danger" id="clearBtn" style="width:100%">清空整個房間</button>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <div class="panel mobile-catalog" id="mobileCatalog" aria-label="家具選單"></div>
+
+      <div class="panel room-shell">
+        <div class="room" id="room" tabindex="0" aria-label="房間佈置區">
+          <div class="window"><div class="sun"></div></div>
+          <div class="room-hint"><strong>從一件家具開始</strong>點選上方或左側的家具加入房間</div>
+          <div class="night-overlay"></div>
+        </div>
+      </div>
+
+      <div class="panel selection-bar">
+        <div class="selection-info">
+          <strong id="selectedTitle">尚未選取家具</strong>
+          <span id="selectedHint">點一下家具即可編輯</span>
+        </div>
+        <button class="btn tool-btn" data-action="rotate" disabled>↻ 旋轉</button>
+        <button class="btn tool-btn" data-action="smaller" disabled>− 縮小</button>
+        <button class="btn tool-btn" data-action="larger" disabled>＋ 放大</button>
+        <button class="btn tool-btn" data-action="duplicate" disabled>⧉ 複製</button>
+        <button class="btn tool-btn danger" data-action="delete" disabled>⌫ 刪除</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const furniture = [
+      { type: 'sofa', name: '柔軟沙發', emoji: '🛋️' },
+      { type: 'bed', name: '舒適小床', emoji: '🛏️' },
+      { type: 'chair', name: '木質椅子', emoji: '🪑' },
+      { type: 'plant', name: '療癒盆栽', emoji: '🪴' },
+      { type: 'lamp', name: '暖光檯燈', emoji: '💡' },
+      { type: 'shelf', name: '收納書櫃', emoji: '🗄️' },
+      { type: 'rug', name: '編織地毯', emoji: '' },
+      { type: 'books', name: '一疊好書', emoji: '📚' },
+      { type: 'art', name: '風景掛畫', emoji: '🖼️' },
+      { type: 'bear', name: '熊熊玩偶', emoji: '🧸' },
+      { type: 'cat', name: '房間主人', emoji: '🐈' },
+      { type: 'music', name: '音樂角落', emoji: '🎸' }
+    ];
+
+    const palettes = {
+      wall: ['#e9d7c4','#e7ddc8','#cbd8cf','#cad8e5','#e4ced5','#d7d1c9'],
+      floor: ['#c89261','#9f7658','#d7b98a','#b2a18d','#826654','#d2a57d']
+    };
+
+    const room = document.getElementById('room');
+    const toast = document.getElementById('toast');
+    const selectedTitle = document.getElementById('selectedTitle');
+    const selectedHint = document.getElementById('selectedHint');
+    const itemCount = document.getElementById('itemCount');
+    let selected = null;
+    let drag = null;
+    let nextId = 1;
+    let toastTimer;
+
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1700);
+    }
+
+    function catalogButton(item) {
+      const button = document.createElement('button');
+      button.className = 'furniture-btn';
+      button.dataset.type = item.type;
+      button.innerHTML = `<span class="emoji">${item.type === 'rug' ? '🟠' : item.emoji}</span><span class="label">${item.name}</span>`;
+      button.addEventListener('click', () => addItem(item.type));
+      return button;
+    }
+
+    furniture.forEach(item => {
+      document.getElementById('desktopCatalog').append(catalogButton(item));
+      document.getElementById('mobileCatalog').append(catalogButton(item));
+    });
+
+    function makeSwatches(kind) {
+      const target = document.getElementById(kind + 'Swatches');
+      palettes[kind].forEach((color, index) => {
+        const button = document.createElement('button');
+        button.className = 'swatch' + (index === 0 ? ' active' : '');
+        button.style.setProperty('--color', color);
+        button.title = `選擇${kind === 'wall' ? '牆面' : '地板'}顏色`;
+        button.addEventListener('click', () => {
+          document.documentElement.style.setProperty(`--${kind}`, color);
+          target.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+          button.classList.add('active');
+          autoSave();
+        });
+        target.append(button);
+      });
+    }
+    makeSwatches('wall');
+    makeSwatches('floor');
+
+    function addItem(type, saved = null) {
+      const info = furniture.find(x => x.type === type);
+      if (!info) return;
+      const el = document.createElement('div');
+      const x = saved?.x ?? 45 + (Math.random() * 20 - 10);
+      const y = saved?.y ?? (type === 'art' ? 31 : 76);
+      el.className = 'item';
+      el.dataset.type = type;
+      el.dataset.id = saved?.id ?? nextId++;
+      el.dataset.x = x;
+      el.dataset.y = y;
+      el.dataset.r = saved?.r ?? 0;
+      el.dataset.s = saved?.s ?? 1;
+      el.style.left = x + '%';
+      el.style.top = y + '%';
+      el.style.setProperty('--r', el.dataset.r + 'deg');
+      el.style.setProperty('--s', el.dataset.s);
+      el.innerHTML = `<div class="item-art">${info.emoji}</div><span class="item-name">${info.name}</span>`;
+      el.addEventListener('pointerdown', startDrag);
+      room.insertBefore(el, room.querySelector('.night-overlay'));
+      selectItem(el);
+      updateRoomState();
+      if (!saved) {
+        showToast(`${info.name}已加入`);
+        autoSave();
+      }
+    }
+
+    function selectItem(el) {
+      room.querySelectorAll('.item').forEach(x => x.classList.remove('selected'));
+      selected = el;
+      document.querySelectorAll('[data-action]').forEach(x => x.disabled = !el);
+      if (el) {
+        el.classList.add('selected');
+        const info = furniture.find(x => x.type === el.dataset.type);
+        selectedTitle.textContent = info.name;
+        selectedHint.textContent = '拖曳移動，也可用鍵盤方向鍵微調';
+      } else {
+        selectedTitle.textContent = '尚未選取家具';
+        selectedHint.textContent = '點一下家具即可編輯';
+      }
+    }
+
+    function startDrag(event) {
+      event.preventDefault();
+      const el = event.currentTarget;
+      selectItem(el);
+      el.setPointerCapture(event.pointerId);
+      const rect = room.getBoundingClientRect();
+      drag = { el, rect, pointerId: event.pointerId };
+      el.addEventListener('pointermove', moveDrag);
+      el.addEventListener('pointerup', endDrag);
+      el.addEventListener('pointercancel', endDrag);
+    }
+
+    function moveDrag(event) {
+      if (!drag) return;
+      const x = clamp((event.clientX - drag.rect.left) / drag.rect.width * 100, 5, 95);
+      const y = clamp((event.clientY - drag.rect.top) / drag.rect.height * 100, 8, 94);
+      drag.el.dataset.x = x.toFixed(2);
+      drag.el.dataset.y = y.toFixed(2);
+      drag.el.style.left = x + '%';
+      drag.el.style.top = y + '%';
+    }
+
+    function endDrag(event) {
+      if (!drag) return;
+      drag.el.releasePointerCapture?.(event.pointerId);
+      drag.el.removeEventListener('pointermove', moveDrag);
+      drag.el.removeEventListener('pointerup', endDrag);
+      drag.el.removeEventListener('pointercancel', endDrag);
+      drag = null;
+      autoSave();
+    }
+
+    room.addEventListener('pointerdown', event => {
+      if (event.target === room || event.target.classList.contains('room-hint')) selectItem(null);
+    });
+
+    function transformSelected(action) {
+      if (!selected) return;
+      if (action === 'rotate') {
+        selected.dataset.r = (+selected.dataset.r + 45) % 360;
+        selected.style.setProperty('--r', selected.dataset.r + 'deg');
+      }
+      if (action === 'smaller' || action === 'larger') {
+        const change = action === 'larger' ? .1 : -.1;
+        selected.dataset.s = clamp(+selected.dataset.s + change, .55, 1.65).toFixed(2);
+        selected.style.setProperty('--s', selected.dataset.s);
+      }
+      if (action === 'duplicate') {
+        addItem(selected.dataset.type, {
+          x: clamp(+selected.dataset.x + 7, 8, 92), y: clamp(+selected.dataset.y + 5, 10, 92),
+          r: selected.dataset.r, s: selected.dataset.s, id: nextId++
+        });
+        showToast('已複製家具');
+      }
+      if (action === 'delete') {
+        const name = furniture.find(x => x.type === selected.dataset.type).name;
+        selected.remove(); selectItem(null); updateRoomState(); showToast(`${name}已移除`);
+      }
+      autoSave();
+    }
+
+    document.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => transformSelected(btn.dataset.action)));
+
+    document.addEventListener('keydown', event => {
+      if (!selected) return;
+      if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); transformSelected('delete'); return; }
+      const arrows = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] };
+      if (!arrows[event.key]) return;
+      event.preventDefault();
+      const step = event.shiftKey ? 3 : .8;
+      selected.dataset.x = clamp(+selected.dataset.x + arrows[event.key][0] * step, 5, 95);
+      selected.dataset.y = clamp(+selected.dataset.y + arrows[event.key][1] * step, 8, 94);
+      selected.style.left = selected.dataset.x + '%';
+      selected.style.top = selected.dataset.y + '%';
+      autoSave();
+    });
+
+    function updateRoomState() {
+      const count = room.querySelectorAll('.item').length;
+      room.classList.toggle('has-items', count > 0);
+      itemCount.textContent = count + ' 件';
+    }
+
+    function getState() {
+      return {
+        wall: getComputedStyle(document.documentElement).getPropertyValue('--wall').trim(),
+        floor: getComputedStyle(document.documentElement).getPropertyValue('--floor').trim(),
+        night: room.classList.contains('night'),
+        items: [...room.querySelectorAll('.item')].map(el => ({
+          type: el.dataset.type, id: +el.dataset.id, x: +el.dataset.x, y: +el.dataset.y,
+          r: +el.dataset.r, s: +el.dataset.s
+        }))
+      };
+    }
+
+    function autoSave() { localStorage.setItem('my-room-autosave', JSON.stringify(getState())); }
+
+    function applyState(state) {
+      if (!state) return;
+      room.querySelectorAll('.item').forEach(x => x.remove());
+      if (state.wall) document.documentElement.style.setProperty('--wall', state.wall);
+      if (state.floor) document.documentElement.style.setProperty('--floor', state.floor);
+      room.classList.toggle('night', !!state.night);
+      document.getElementById('themeBtn').textContent = state.night ? '🌙' : '☀️';
+      (state.items || []).forEach(item => addItem(item.type, item));
+      nextId = Math.max(1, ...(state.items || []).map(x => +x.id + 1));
+      selectItem(null); updateRoomState();
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      localStorage.setItem('my-room-saved', JSON.stringify(getState()));
+      showToast('房間已儲存在這台裝置');
+    });
+
+    document.getElementById('themeBtn').addEventListener('click', event => {
+      room.classList.toggle('night');
+      event.currentTarget.textContent = room.classList.contains('night') ? '🌙' : '☀️';
+      showToast(room.classList.contains('night') ? '晚安，小房間' : '早安，陽光進來了');
+      autoSave();
+    });
+
+    document.getElementById('randomBtn').addEventListener('click', () => {
+      room.querySelectorAll('.item').forEach(x => x.remove());
+      const types = [...furniture].sort(() => Math.random() - .5).slice(0, 6);
+      const spots = [[28,78],[52,77],[73,78],[66,49],[38,48],[84,54]];
+      types.forEach((item, i) => addItem(item.type, { x: spots[i][0], y: item.type === 'art' ? 30 : spots[i][1], r: 0, s: .85 + Math.random() * .25, id: nextId++ }));
+      const wall = palettes.wall[Math.floor(Math.random() * palettes.wall.length)];
+      const floor = palettes.floor[Math.floor(Math.random() * palettes.floor.length)];
+      document.documentElement.style.setProperty('--wall', wall);
+      document.documentElement.style.setProperty('--floor', floor);
+      selectItem(null); updateRoomState(); autoSave(); showToast('新的房間靈感完成了');
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (!room.querySelector('.item') || confirm('確定要清空所有家具嗎？')) {
+        room.querySelectorAll('.item').forEach(x => x.remove());
+        selectItem(null); updateRoomState(); autoSave(); showToast('房間已清空');
+      }
+    });
+
+    try {
+      const saved = localStorage.getItem('my-room-autosave') || localStorage.getItem('my-room-saved');
+      if (saved) applyState(JSON.parse(saved));
+      else {
+        addItem('sofa', { x: 51, y: 75, r: 0, s: 1.15, id: nextId++ });
+        addItem('plant', { x: 78, y: 72, r: 0, s: 1, id: nextId++ });
+        addItem('rug', { x: 51, y: 88, r: 0, s: 1.25, id: nextId++ });
+        selectItem(null); updateRoomState();
+      }
+    } catch (error) { console.warn('無法載入先前的房間', error); }
+  </script>
+</body>
+</html>
